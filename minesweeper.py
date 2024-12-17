@@ -39,12 +39,18 @@ class Button():
         # Center horizontally and position vertically based on button type
         if self.text == "Start":
             self.rect.center = (screen_width // 2, start_y)
+        elif self.text == "Easy":
+            self.rect.center = (screen_width // 2, start_y)
         elif self.text == "Option":
+            self.rect.center = (screen_width // 2, start_y + button_spacing)
+        elif self.text == "Medium":
             self.rect.center = (screen_width // 2, start_y + button_spacing)
         elif self.text == "Quit":
             self.rect.center = (screen_width // 2, start_y + button_spacing * 2)
+        elif self.text == "Hard":
+            self.rect.center = (screen_width // 2, start_y + button_spacing * 2)
         elif self.text == "Back":
-            self.rect.center = (screen_width // 2, start_y)
+            self.rect.center = (screen_width // 2, start_y + button_spacing * 3)
 
     def draw(self, screen):
         screen.blit(self.text_surface, self.rect)
@@ -55,10 +61,16 @@ class Button():
 start_button = Button("Start")
 option_button = Button("Option")
 quit_button = Button("Quit")
+easy_button = Button("Easy")
+medium_button = Button("Medium")
+hard_button = Button("Hard")
 
 def play():
     while True:
         screen.fill("black")
+        easy_button.draw(screen)
+        medium_button.draw(screen)
+        hard_button.draw(screen)
         back_button = Button("Back")
         back_button.draw(screen)
 
