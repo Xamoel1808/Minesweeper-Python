@@ -9,11 +9,14 @@ pygame.init()
 
 BACKGROUND_COLOR = (255, 105, 180)
 
+flag_image = pygame.image.load("assets/flag.png")
+bomb_image = pygame.image.load("assets/bomb.png")
+
 width=500
 height=600
 screen = pygame.display.set_mode((width,height), pygame.RESIZABLE)
 pygame.display.set_caption("Minesweeper")
-pygame.display.set_icon(pygame.image.load("assets/bomb.png"))
+pygame.display.set_icon(bomb_image)
 
 font = pygame.font.SysFont("arialblack", 40)
 
@@ -40,7 +43,7 @@ class Button():
     
     def update_position(self):
         button_spacing = 80
-        total_height = button_spacing * 3
+        total_height = button_spacing * 4
         start_y = (screen.get_height() - total_height) // 2
 
         if self.text == "Start":
@@ -51,10 +54,12 @@ class Button():
             self.rect.center = (screen.get_width() // 2, start_y + button_spacing)
         elif self.text == "Medium":
             self.rect.center = (screen.get_width() // 2, start_y + button_spacing)
-        elif self.text == "Quit":
+        elif self.text == "Score":
             self.rect.center = (screen.get_width() // 2, start_y + button_spacing * 2)
         elif self.text == "Hard":
             self.rect.center = (screen.get_width() // 2, start_y + button_spacing * 2)
+        elif self.text == "Quit":
+            self.rect.center = (screen.get_width() // 2, start_y + button_spacing * 3)
         elif self.text == "Back":
             self.rect.center = (screen.get_width() // 2, start_y + button_spacing * 3)
 
@@ -70,6 +75,9 @@ quit_button = Button("Quit")
 easy_button = Button("Easy")
 medium_button = Button("Medium")
 hard_button = Button("Hard")
+score_button = Button("Score")
+back_button = Button("Back")
+
 
 class Game:
     def __init__(self, width, height, mines):
@@ -138,9 +146,8 @@ class Game:
                     pygame.draw.rect(screen, (128, 128, 128), rect, 1)
                     
                     if self.flagged[y][x]:
-                        flag_text = cell_font.render('F', True, (255, 0, 0))
-                        flag_rect = flag_text.get_rect(center=rect.center)
-                        screen.blit(flag_text, flag_rect)
+                        flag_rect = flag_image.get_rect(center=rect.center)
+                        screen.blit(flag_image, flag_rect)
                 else:
                     pygame.draw.rect(screen, (220, 220, 220), rect)
                     pygame.draw.rect(screen, (128, 128, 128), rect, 1)
@@ -152,20 +159,17 @@ class Game:
                         text_rect = text.get_rect(center=rect.center)
                         screen.blit(text, text_rect)
                     elif self.board[y][x] == -1:
-                        pygame.draw.circle(screen, (0, 0, 0), rect.center, CELL_SIZE // 3)
+                        bomb_rect = bomb_image.get_rect(center=rect.center)
+                        screen.blit(bomb_image, bomb_rect)
 
     def toggle_flag(self, x, y):
         if not self.revealed[y][x]:
             if not self.flagged[y][x] and self.flags_left > 0:
                 self.flagged[y][x] = True
                 self.flags_left -= 1
-                if self.board[y][x] == -1:
-                    self.score += 10
             elif self.flagged[y][x]:
                 self.flagged[y][x] = False
                 self.flags_left += 1
-                if self.board[y][x] == -1:
-                    self.score -= 10
 
     def check_victory(self):
         for y in range(self.height):
@@ -177,7 +181,7 @@ class Game:
     def calculate_score(self):
         self.end_time = time.time()
         elapsed_time = self.end_time - self.start_time
-        self.score = max(0, int(1000 - elapsed_time))
+        self.score = int(elapsed_time)
 
     def reveal_cell(self, x, y):
         if self.flagged[y][x]:
@@ -185,7 +189,6 @@ class Game:
         if self.revealed[y][x] or self.flagged[y][x]:
             return
         self.revealed[y][x] = True
-        self.score += 1 
         if self.board[y][x] == 0:
             for dy in [-1, 0, 1]:
                 for dx in [-1, 0, 1]:
@@ -204,6 +207,13 @@ class Game:
         if self.end_time:
             return self.end_time - self.start_time
         return time.time() - self.start_time
+
+class Score:
+    def __init__(self, name, score, mode, board):
+        self.name = name
+        self.score = score
+        self.mode = mode
+        self.board = board
 
 def save_game(name, score, mode, board):
     game_data = {
@@ -238,13 +248,19 @@ def get_player_name():
                     name += event.unicode
     return name
 
+def get_sorted_scores():
+    with open("game_results.json", "r") as file:
+        game_results = [json.loads(line) for line in file]
+    
+    sorted_results = sorted(game_results, key=lambda x: x['score'])
+    return sorted_results
+
 def play():
     while True:
         screen.fill("black")
         easy_button.update_position()
         medium_button.update_position()
         hard_button.update_position()
-        back_button = Button("Back")
         back_button.update_position()
 
         easy_button.draw(screen)
@@ -256,7 +272,7 @@ def play():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if back_button.isPressed(event.pos):
                     main_menu()
                 elif easy_button.isPressed(event.pos):
@@ -270,6 +286,9 @@ def play():
                 easy_button.update_position()
                 medium_button.update_position()
                 hard_button.update_position()
+            if event.type == pygame.KEYDOWN:   
+                if event.key == pygame.K_ESCAPE:
+                    main_menu()
 
         pygame.display.update()
         pygame.display.flip()
@@ -345,18 +364,134 @@ def quit():
 def option():
     while True:
         screen.fill("pink")
-        back_button = Button("Back")
         back_button.draw(screen)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if back_button.isPressed(event.pos):
                     main_menu()
             if event.type == pygame.VIDEORESIZE:
                 back_button.update_position()
+            if event.type == pygame.KEYDOWN:   
+                if event.key == pygame.K_ESCAPE:
+                    main_menu()
+
+        pygame.display.update()
+        pygame.display.flip()
+
+def play_existing_game(board):
+    height = len(board)
+    width = len(board[0])
+    mines = sum(row.count(-1) for row in board)
+    game = Game(width, height, mines)
+    game.board = board
+    game.calculate_numbers()
+    game_screen_width = width * CELL_SIZE
+    game_screen_height = height * CELL_SIZE + 40
+    screen = pygame.display.set_mode((game_screen_width, game_screen_height), pygame.RESIZABLE)
+    
+    while True:
+        screen.fill((192, 192, 192))
+        
+        flag_font = pygame.font.SysFont("arialblack", 20)
+        flag_text = flag_font.render(f"Flags: {game.flags_left}", True, (0, 0, 0))
+        screen.blit(flag_text, (10, 10))
+        
+        elapsed_time = game.get_elapsed_time()
+        time_text = flag_font.render(f"Time: {int(elapsed_time)}s", True, (0, 0, 0))
+        screen.blit(time_text, (game_screen_width - 150, 10)) 
+        
+        game_surface = pygame.Surface((game_screen_width, height * CELL_SIZE))
+        game_surface.fill((192, 192, 192))
+        game.draw_grid(game_surface)
+        screen.blit(game_surface, (0, 40))
+
+        if game.game_over:
+            message_width = 200
+            message_height = 100
+            rect = pygame.Rect(
+                (game_screen_width - message_width) // 2,
+                ((game_screen_height - message_height) // 2) + 20,
+                message_width,
+                message_height
+            )
+            pygame.draw.rect(screen, (255, 0, 0) if not game.victory else (0, 255, 0), rect)
+            
+            game_over_font = pygame.font.SysFont("arialblack", 20)
+            text = game_over_font.render("GAME OVER!" if not game.victory else "YOU WIN!", True, (255, 255, 255))
+            text_rect = text.get_rect(center=rect.center)
+            screen.blit(text, text_rect)
+            
+            if game.victory:
+                player_name = get_player_name()
+                save_game(player_name, game.score, f"{width}x{height}", game.board)
+                return
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    return
+            if event.type == pygame.MOUSEBUTTONDOWN and not game.game_over:
+                x, y = event.pos
+                y -= 40
+                if y >= 0:
+                    grid_x, grid_y = x // CELL_SIZE, y // CELL_SIZE
+                    if 0 <= grid_x < width and 0 <= grid_y < height:
+                        if event.button == 1:
+                            game.reveal_cell(grid_x, grid_y)
+                        elif event.button == 3:
+                            game.toggle_flag(grid_x, grid_y)
+
+        pygame.display.update()
+
+def score_menu():
+    sorted_scores = get_sorted_scores()
+    font = pygame.font.SysFont("arialblack", 20)
+    scroll_y = 0
+    scroll_speed = 20
+    
+    while True:
+        screen.fill("orange")
+        back_button.draw(screen)
+        
+        score_buttons = []  
+        
+        y_offset = 50 + scroll_y
+        for result in sorted_scores:
+            score_text = f"{result['name']} = {result['score']} in {result['mode']}"
+            text_surface = font.render(score_text, True, (0, 0, 0))
+            text_rect = text_surface.get_rect(center=(screen.get_width() / 2, y_offset))
+            screen.blit(text_surface, text_rect)
+            score_buttons.append((text_rect, result))
+            y_offset += 30
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: 
+                if back_button.isPressed(event.pos):
+                    main_menu()
+                for rect, result in score_buttons:
+                    if rect.collidepoint(event.pos):
+                        play_existing_game(result['board'])
+            if event.type == pygame.VIDEORESIZE:
+                back_button.update_position()
+            if event.type == pygame.KEYDOWN:   
+                if event.key == pygame.K_ESCAPE:
+                    main_menu()
+                elif event.key == pygame.K_DOWN:
+                    scroll_y -= scroll_speed
+                elif event.key == pygame.K_UP:
+                    scroll_y += scroll_speed
+            if event.type == pygame.MOUSEWHEEL:
+                scroll_y += event.y * scroll_speed
 
         pygame.display.update()
         pygame.display.flip()
@@ -367,19 +502,23 @@ def main_menu():
 
         start_button.update_position()
         option_button.update_position()
+        score_button.update_position()
         quit_button.update_position()
 
         start_button.draw(screen)
         option_button.draw(screen)
+        score_button.draw(screen)
         quit_button.draw(screen)
         for event in pygame.event.get():
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if start_button.isPressed(event.pos):
                     play()
                 if quit_button.isPressed(event.pos):
                     quit()
                 if option_button.isPressed(event.pos):
                     option()
+                if score_button.isPressed(event.pos):
+                    score_menu()
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
@@ -387,6 +526,10 @@ def main_menu():
                 start_button.update_position()
                 option_button.update_position()
                 quit_button.update_position()
+            if event.type == pygame.KEYDOWN:   
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
 
         pygame.display.update()
         pygame.display.flip()
