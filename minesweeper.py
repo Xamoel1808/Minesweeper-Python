@@ -13,6 +13,7 @@ width=500
 height=600
 screen = pygame.display.set_mode((width,height), pygame.RESIZABLE)
 pygame.display.set_caption("Minesweeper")
+pygame.display.set_icon(pygame.image.load("assets/bomb.png"))
 
 font = pygame.font.SysFont("arialblack", 40)
 
@@ -278,7 +279,7 @@ def start_game(width, height, mines):
     game.print_grid()
     game_screen_width = width * CELL_SIZE
     game_screen_height = height * CELL_SIZE + 40
-    screen = pygame.display.set_mode((game_screen_width, game_screen_height))
+    screen = pygame.display.set_mode((game_screen_width, game_screen_height), pygame.RESIZABLE)    
     
     while True:
         screen.fill((192, 192, 192))
