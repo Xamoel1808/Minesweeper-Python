@@ -264,9 +264,11 @@ def get_player_name():
     return name
 
 def get_sorted_scores():
-    with open("game_results.json", "r") as file:
-        game_results = [json.loads(line) for line in file]
-    
+    try:
+        with open("game_results.json", "r") as file:
+            game_results = [json.loads(line) for line in file]
+    except FileNotFoundError:
+        return []
     sorted_results = sorted(game_results, key=lambda x: x['score'])
     return sorted_results
 
@@ -492,13 +494,18 @@ def score_menu():
         score_buttons = []  
         
         y_offset = 50 + scroll_y
-        for result in sorted_scores:
-            score_text = f"{result['name']} = {result['score']} in {result['mode']}"
-            text_surface = font.render(score_text, True, (0, 0, 0))
-            text_rect = text_surface.get_rect(center=(screen.get_width() / 2, y_offset))
-            screen.blit(text_surface, text_rect)
-            score_buttons.append((text_rect, result))
-            y_offset += 30
+        if not sorted_scores:
+            no_scores_text = font.render("No scores available", True, (0, 0, 0))
+            no_scores_rect = no_scores_text.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2))
+            screen.blit(no_scores_text, no_scores_rect)
+        else:
+            for result in sorted_scores:
+                score_text = f"{result['name']} = {result['score']} in {result['mode']}"
+                text_surface = font.render(score_text, True, (0, 0, 0))
+                text_rect = text_surface.get_rect(center=(screen.get_width() / 2, y_offset))
+                screen.blit(text_surface, text_rect)
+                score_buttons.append((text_rect, result))
+                y_offset += 30
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
