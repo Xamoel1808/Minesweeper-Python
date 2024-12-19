@@ -457,11 +457,6 @@ def play_existing_game(board, first_click):
             text = game_over_font.render("GAME OVER!" if not game.victory else "YOU WIN!", True, (255, 255, 255))
             text_rect = text.get_rect(center=rect.center)
             screen.blit(text, text_rect)
-            
-            if game.victory:
-                player_name = get_player_name()
-                save_game(player_name, game.score, f"{width}x{height}", game.board, game.first_click)
-                return
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
