@@ -8,6 +8,7 @@ from pygame import KEYDOWN
 pygame.init()
 
 background_image = pygame.image.load("assets/background2.png")
+background_image_easter_egg = pygame.image.load("assets/background3.png") 
 
 flag_image = pygame.image.load("assets/flag.png")
 bomb_image = pygame.image.load("assets/bomb.png")
@@ -35,36 +36,28 @@ def draw_text (text, font, color, x, y):
     screen.blit(text_surface, (x, y))
 
 class Button():
-    def __init__(self, text):
-        self.text_surface = font.render(text, True, color)
-        self.rect = self.text_surface.get_rect()
+    def __init__(self, text, image=None):
         self.text = text
-        self.update_position()
+        self.image = image
+        if image:
+            self.image = pygame.transform.scale(image, (image.get_width() * 2, image.get_height() * 2))
+        self.text_surface = font.render(text, True, color) if not image else None
+        self.rect = self.text_surface.get_rect() if not image else self.image.get_rect()
+        self.update_position(["Start", "Easy", "Option", "Medium", "Score", "Hard", "Quit", "Back"])
     
-    def update_position(self):
-        button_spacing = 80
-        total_height = button_spacing * 4
-        start_y = (screen.get_height() - total_height) // 2
+    def update_position(self, buttons):
+        button_spacing = screen.get_height() // 6  
+        total_height = button_spacing * len(buttons)
+        start_y = (screen.get_height() - total_height) // 2 + button_spacing // 2
 
-        if self.text == "Start":
-            self.rect.center = (screen.get_width() // 2, start_y)
-        elif self.text == "Easy":
-            self.rect.center = (screen.get_width() // 2, start_y)
-        elif self.text == "Option":
-            self.rect.center = (screen.get_width() // 2, start_y + button_spacing)
-        elif self.text == "Medium":
-            self.rect.center = (screen.get_width() // 2, start_y + button_spacing)
-        elif self.text == "Score":
-            self.rect.center = (screen.get_width() // 2, start_y + button_spacing * 2)
-        elif self.text == "Hard":
-            self.rect.center = (screen.get_width() // 2, start_y + button_spacing * 2)
-        elif self.text == "Quit":
-            self.rect.center = (screen.get_width() // 2, start_y + button_spacing * 3)
-        elif self.text == "Back":
-            self.rect.center = (screen.get_width() // 2, start_y + button_spacing * 3)
+        button_index = buttons.index(self.text)
+        self.rect.center = (screen.get_width() // 2, start_y + button_index * button_spacing)
 
     def draw(self, screen):
-        screen.blit(self.text_surface, self.rect)
+        if self.image:
+            screen.blit(self.image, self.rect)
+        else:
+            screen.blit(self.text_surface, self.rect)
 
     def isPressed(self, pos):
         return self.rect.collidepoint(pos)
@@ -77,6 +70,37 @@ medium_button = Button("Medium")
 hard_button = Button("Hard")
 score_button = Button("Score")
 back_button = Button("Back")
+
+# Load images for easter egg mode
+start_image = pygame.image.load("assets/start.png")
+option_image = pygame.image.load("assets/option.png")
+quit_image = pygame.image.load("assets/quit.png")
+easy_image = pygame.image.load("assets/easy.png")
+medium_image = pygame.image.load("assets/medium.png")
+hard_image = pygame.image.load("assets/hard.png")
+score_image = pygame.image.load("assets/score.png")
+back_image = pygame.image.load("assets/back.png")
+
+def update_buttons_for_easter_egg(easter_egg_active):
+    global start_button, option_button, quit_button, easy_button, medium_button, hard_button, score_button, back_button
+    if easter_egg_active:
+        start_button = Button("Start", start_image)
+        option_button = Button("Option", option_image)
+        quit_button = Button("Quit", quit_image)
+        easy_button = Button("Easy", easy_image)
+        medium_button = Button("Medium", medium_image)
+        hard_button = Button("Hard", hard_image)
+        score_button = Button("Score", score_image)
+        back_button = Button("Back", back_image)
+    else:
+        start_button = Button("Start")
+        option_button = Button("Option")
+        quit_button = Button("Quit")
+        easy_button = Button("Easy")
+        medium_button = Button("Medium")
+        hard_button = Button("Hard")
+        score_button = Button("Score")
+        back_button = Button("Back")
 
 explosion_sound = pygame.mixer.Sound("assets/explosion.mp3")
 
@@ -138,6 +162,7 @@ class Game:
                                 self.board[new_y][new_x] == -1):
                                 mine_count += 1
                     self.board[y][x] = mine_count
+        self.print_grid()
 
     def print_grid(self):
         for row in self.board:
@@ -272,24 +297,27 @@ def get_sorted_scores():
     sorted_results = sorted(game_results, key=lambda x: x['score'])
     return sorted_results
 
-def draw_background():
-    bg_width, bg_height = background_image.get_size()
+def draw_background(easter_egg=False):
+    bg_image = background_image_easter_egg if easter_egg else background_image
+    bg_width, bg_height = bg_image.get_size()
     screen_width, screen_height = screen.get_size()
     
     scale = max(screen_width / bg_width, screen_height / bg_height)
     new_width = int(bg_width * scale)
     new_height = int(bg_height * scale)
     
-    scaled_background = pygame.transform.scale(background_image, (new_width, new_height))
+    scaled_background = pygame.transform.scale(bg_image, (new_width, new_height))
     screen.blit(scaled_background, (0, 0))
 
-def play():
+def play(easter_egg_active):
+    update_buttons_for_easter_egg(easter_egg_active)
+    buttons = ["Easy", "Medium", "Hard", "Back"]
     while True:
-        draw_background()
-        easy_button.update_position()
-        medium_button.update_position()
-        hard_button.update_position()
-        back_button.update_position()
+        draw_background(easter_egg_active)
+        easy_button.update_position(buttons)
+        medium_button.update_position(buttons)
+        hard_button.update_position(buttons)
+        back_button.update_position(buttons)
 
         easy_button.draw(screen)
         medium_button.draw(screen)
@@ -302,32 +330,35 @@ def play():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if back_button.isPressed(event.pos):
-                    main_menu()
+                    main_menu(easter_egg_active)
                 elif easy_button.isPressed(event.pos):
-                    start_game(*EASY_DIMS)
+                    start_game(*EASY_DIMS, easter_egg_active)
                 elif medium_button.isPressed(event.pos):
-                    start_game(*MEDIUM_DIMS)
+                    start_game(*MEDIUM_DIMS, easter_egg_active)
                 elif hard_button.isPressed(event.pos):
-                    start_game(*HARD_DIMS)
+                    start_game(*HARD_DIMS, easter_egg_active)
             if event.type == pygame.VIDEORESIZE:
-                back_button.update_position()
-                easy_button.update_position()
-                medium_button.update_position()
-                hard_button.update_position()
+                back_button.update_position(buttons)
+                easy_button.update_position(buttons)
+                medium_button.update_position(buttons)
+                hard_button.update_position(buttons)
             if event.type == pygame.KEYDOWN:   
                 if event.key == pygame.K_ESCAPE:
-                    main_menu()
+                    main_menu(easter_egg_active)
+                elif event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    easter_egg_active = not easter_egg_active
 
         pygame.display.update()
         pygame.display.flip()
 
-def start_game(width, height, mines):
+def start_game(width, height, mines, easter_egg_active):
+    update_buttons_for_easter_egg(easter_egg_active)
     game = Game(width, height, mines)
     game_screen_width = width * CELL_SIZE
     game_screen_height = height * CELL_SIZE + 40
     
     while True:
-        draw_background()
+        draw_background(easter_egg_active)
         
         flag_font = pygame.font.SysFont("arialblack", 20)
         flag_text = flag_font.render(f"Flags: {game.flags_left}", True, (0, 0, 0))
@@ -373,6 +404,8 @@ def start_game(width, height, mines):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     return
+                elif event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    easter_egg_active = not easter_egg_active
             if event.type == pygame.MOUSEBUTTONDOWN and not game.game_over:
                 x, y = event.pos
                 y -= grid_y
@@ -391,9 +424,12 @@ def quit():
     pygame.quit()
     sys.exit()
 
-def option():
+def option(easter_egg_active):
+    update_buttons_for_easter_egg(easter_egg_active)
     while True:
-        draw_background()
+        draw_background(easter_egg_active)
+        back_button.update_position(["Back"])
+        back_button.rect.bottom = screen.get_height() - 10  
         back_button.draw(screen)
 
         for event in pygame.event.get():
@@ -402,17 +438,20 @@ def option():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if back_button.isPressed(event.pos):
-                    main_menu()
+                    main_menu(easter_egg_active)
             if event.type == pygame.VIDEORESIZE:
-                back_button.update_position()
+                back_button.update_position(["Back"])
+                back_button.rect.bottom = screen.get_height() - 10  # Move back button to the bottom
             if event.type == pygame.KEYDOWN:   
                 if event.key == pygame.K_ESCAPE:
-                    main_menu()
+                    main_menu(easter_egg_active)
+                elif event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    easter_egg_active = not easter_egg_active
 
         pygame.display.update()
         pygame.display.flip()
 
-def play_existing_game(board, first_click):
+def play_existing_game(board, first_click, easter_egg_active):
     height = len(board)
     width = len(board[0])
     mines = sum(row.count(-1) for row in board)
@@ -426,7 +465,7 @@ def play_existing_game(board, first_click):
     game_screen_height = height * CELL_SIZE + 40
     
     while True:
-        draw_background()
+        draw_background(easter_egg_active)
         
         flag_font = pygame.font.SysFont("arialblack", 20)
         flag_text = flag_font.render(f"Flags: {game.flags_left}", True, (0, 0, 0))
@@ -467,6 +506,8 @@ def play_existing_game(board, first_click):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     return
+                elif event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    easter_egg_active = not easter_egg_active
             if event.type == pygame.MOUSEBUTTONDOWN and not game.game_over:
                 x, y = event.pos
                 y -= grid_y
@@ -481,14 +522,17 @@ def play_existing_game(board, first_click):
 
         pygame.display.update()
 
-def score_menu():
+def score_menu(easter_egg_active):
+    update_buttons_for_easter_egg(easter_egg_active)
     sorted_scores = get_sorted_scores()
     font = pygame.font.SysFont("arialblack", 20)
     scroll_y = 0
     scroll_speed = 20
     
     while True:
-        draw_background()
+        draw_background(easter_egg_active)
+        back_button.update_position(["Back"])
+        back_button.rect.bottom = screen.get_height() - 10 
         back_button.draw(screen)
         
         score_buttons = []  
@@ -513,33 +557,38 @@ def score_menu():
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: 
                 if back_button.isPressed(event.pos):
-                    main_menu()
+                    main_menu(easter_egg_active)
                 for rect, result in score_buttons:
                     if rect.collidepoint(event.pos):
-                        play_existing_game(result['board'], result.get('first_click'))  
+                        play_existing_game(result['board'], result.get('first_click'), easter_egg_active)  
             if event.type == pygame.VIDEORESIZE:
-                back_button.update_position()
+                back_button.update_position(["Back"])
+                back_button.rect.bottom = screen.get_height() - 10  # Move back button to the bottom
             if event.type == pygame.KEYDOWN:   
                 if event.key == pygame.K_ESCAPE:
-                    main_menu()
+                    main_menu(easter_egg_active)
                 elif event.key == pygame.K_DOWN:
                     scroll_y -= scroll_speed
                 elif event.key == pygame.K_UP:
                     scroll_y += scroll_speed
+                elif event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    easter_egg_active = not easter_egg_active
             if event.type == pygame.MOUSEWHEEL:
                 scroll_y += event.y * scroll_speed
 
         pygame.display.update()
         pygame.display.flip()
 
-def main_menu():
+def main_menu(easter_egg_active=False):
+    update_buttons_for_easter_egg(easter_egg_active)
+    buttons = ["Start", "Option", "Score", "Quit"]
     while True:
-        draw_background()
+        draw_background(easter_egg_active)
 
-        start_button.update_position()
-        option_button.update_position()
-        score_button.update_position()
-        quit_button.update_position()
+        start_button.update_position(buttons)
+        option_button.update_position(buttons)
+        score_button.update_position(buttons)
+        quit_button.update_position(buttons)
 
         start_button.draw(screen)
         option_button.draw(screen)
@@ -548,24 +597,26 @@ def main_menu():
         for event in pygame.event.get():
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if start_button.isPressed(event.pos):
-                    play()
+                    play(easter_egg_active)
                 if quit_button.isPressed(event.pos):
                     quit()
                 if option_button.isPressed(event.pos):
-                    option()
+                    option(easter_egg_active)
                 if score_button.isPressed(event.pos):
-                    score_menu()
+                    score_menu(easter_egg_active)
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.VIDEORESIZE:
-                start_button.update_position()
-                option_button.update_position()
-                quit_button.update_position()
+                start_button.update_position(buttons)
+                option_button.update_position(buttons)
+                quit_button.update_position(buttons)
             if event.type == pygame.KEYDOWN:   
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     sys.exit()
+                elif event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_CTRL:  
+                    easter_egg_active = not easter_egg_active
 
         pygame.display.update()
         pygame.display.flip()
