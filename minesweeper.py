@@ -7,12 +7,12 @@ from pygame import KEYDOWN
 
 pygame.init()
 
-BACKGROUND_COLOR = (255, 105, 180)
+background_image = pygame.image.load("assets/background2.png")
 
 flag_image = pygame.image.load("assets/flag.png")
 bomb_image = pygame.image.load("assets/bomb.png")
 
-width=500
+width=1000
 height=600
 screen = pygame.display.set_mode((width,height), pygame.RESIZABLE)
 pygame.display.set_caption("Minesweeper")
@@ -78,9 +78,10 @@ hard_button = Button("Hard")
 score_button = Button("Score")
 back_button = Button("Back")
 
+explosion_sound = pygame.mixer.Sound("assets/explosion.mp3")
 
 class Game:
-    def __init__(self, width, height, mines):
+    def __init__(self, width, height, mines, first_click=None):
         self.width = width
         self.height = height
         self.mines = mines
@@ -90,11 +91,11 @@ class Game:
         self.game_over = False
         self.flags_left = mines
         self.victory = False
-        self.place_mines()
-        self.calculate_numbers()
         self.score = 0
         self.start_time = time.time()
         self.end_time = None  
+        self.mines_placed = False
+        self.first_click = first_click  
         
         self.COLORS = {
             1: (0, 0, 255),
@@ -106,13 +107,21 @@ class Game:
             7: (0, 0, 0),
             8: (128, 128, 128)
         }
-        
-    def place_mines(self):
+
+    def place_mines(self, first_click_x=None, first_click_y=None):
         positions = [(x, y) for x in range(self.width) for y in range(self.height)]
+        if first_click_x is not None and first_click_y is not None:
+            safe_zone = [(first_click_x + dx, first_click_y + dy) 
+                         for dx in range(-1, 2) for dy in range(-1, 2)
+                         if 0 <= first_click_x + dx < self.width and 0 <= first_click_y + dy < self.height]
+            for pos in safe_zone:
+                if pos in positions:
+                    positions.remove(pos)
         mine_positions = random.sample(positions, self.mines)
         
         for x, y in mine_positions:
             self.board[y][x] = -1
+        self.mines_placed = True
     
     def calculate_numbers(self):
         for y in range(self.height):
@@ -184,6 +193,10 @@ class Game:
         self.score = int(elapsed_time)
 
     def reveal_cell(self, x, y):
+        if not self.mines_placed:  
+            self.place_mines(x, y)
+            self.calculate_numbers()
+            self.first_click = (x, y) 
         if self.flagged[y][x]:
             return
         if self.revealed[y][x] or self.flagged[y][x]:
@@ -198,6 +211,7 @@ class Game:
         elif self.board[y][x] == -1:
             self.game_over = True
             self.end_time = time.time()
+            explosion_sound.play()  
         if self.check_victory():
             self.game_over = True
             self.victory = True
@@ -215,12 +229,13 @@ class Score:
         self.mode = mode
         self.board = board
 
-def save_game(name, score, mode, board):
+def save_game(name, score, mode, board, first_click):
     game_data = {
         "name": name,
         "score": score,
         "mode": mode,
-        "board": board
+        "board": board,
+        "first_click": first_click  
     }
     with open("game_results.json", "a") as file:
         json.dump(game_data, file)
@@ -255,9 +270,20 @@ def get_sorted_scores():
     sorted_results = sorted(game_results, key=lambda x: x['score'])
     return sorted_results
 
+def draw_background():
+    bg_width, bg_height = background_image.get_size()
+    screen_width, screen_height = screen.get_size()
+    
+    scale = max(screen_width / bg_width, screen_height / bg_height)
+    new_width = int(bg_width * scale)
+    new_height = int(bg_height * scale)
+    
+    scaled_background = pygame.transform.scale(background_image, (new_width, new_height))
+    screen.blit(scaled_background, (0, 0))
+
 def play():
     while True:
-        screen.fill("black")
+        draw_background()
         easy_button.update_position()
         medium_button.update_position()
         hard_button.update_position()
@@ -295,13 +321,11 @@ def play():
 
 def start_game(width, height, mines):
     game = Game(width, height, mines)
-    game.print_grid()
     game_screen_width = width * CELL_SIZE
     game_screen_height = height * CELL_SIZE + 40
-    screen = pygame.display.set_mode((game_screen_width, game_screen_height), pygame.RESIZABLE)    
     
     while True:
-        screen.fill((192, 192, 192))
+        draw_background()
         
         flag_font = pygame.font.SysFont("arialblack", 20)
         flag_text = flag_font.render(f"Flags: {game.flags_left}", True, (0, 0, 0))
@@ -314,14 +338,17 @@ def start_game(width, height, mines):
         game_surface = pygame.Surface((game_screen_width, height * CELL_SIZE))
         game_surface.fill((192, 192, 192))
         game.draw_grid(game_surface)
-        screen.blit(game_surface, (0, 40))
+        
+        grid_x = (screen.get_width() - game_screen_width) // 2
+        grid_y = (screen.get_height() - game_screen_height) // 2 + 40
+        screen.blit(game_surface, (grid_x, grid_y))
 
         if game.game_over:
             message_width = 200
             message_height = 100
             rect = pygame.Rect(
-                (game_screen_width - message_width) // 2,
-                ((game_screen_height - message_height) // 2) + 20,
+                (screen.get_width() - message_width) // 2,
+                (screen.get_height() - message_height) // 2,
                 message_width,
                 message_height
             )
@@ -334,7 +361,7 @@ def start_game(width, height, mines):
             
             if game.victory:
                 player_name = get_player_name()
-                save_game(player_name, game.score, f"{width}x{height}", game.board)
+                save_game(player_name, game.score, f"{width}x{height}", game.board, game.first_click)
                 return
 
         for event in pygame.event.get():
@@ -346,8 +373,9 @@ def start_game(width, height, mines):
                     return
             if event.type == pygame.MOUSEBUTTONDOWN and not game.game_over:
                 x, y = event.pos
-                y -= 40
-                if y >= 0:
+                y -= grid_y
+                x -= grid_x
+                if y >= 0 and x >= 0:
                     grid_x, grid_y = x // CELL_SIZE, y // CELL_SIZE
                     if 0 <= grid_x < width and 0 <= grid_y < height:
                         if event.button == 1:
@@ -363,7 +391,7 @@ def quit():
 
 def option():
     while True:
-        screen.fill("pink")
+        draw_background()
         back_button.draw(screen)
 
         for event in pygame.event.get():
@@ -382,19 +410,21 @@ def option():
         pygame.display.update()
         pygame.display.flip()
 
-def play_existing_game(board):
+def play_existing_game(board, first_click):
     height = len(board)
     width = len(board[0])
     mines = sum(row.count(-1) for row in board)
-    game = Game(width, height, mines)
+    game = Game(width, height, mines, first_click)
     game.board = board
+    game.mines_placed = True 
     game.calculate_numbers()
+    if first_click:
+        game.reveal_cell(*first_click)  
     game_screen_width = width * CELL_SIZE
     game_screen_height = height * CELL_SIZE + 40
-    screen = pygame.display.set_mode((game_screen_width, game_screen_height), pygame.RESIZABLE)
     
     while True:
-        screen.fill((192, 192, 192))
+        draw_background()
         
         flag_font = pygame.font.SysFont("arialblack", 20)
         flag_text = flag_font.render(f"Flags: {game.flags_left}", True, (0, 0, 0))
@@ -407,14 +437,17 @@ def play_existing_game(board):
         game_surface = pygame.Surface((game_screen_width, height * CELL_SIZE))
         game_surface.fill((192, 192, 192))
         game.draw_grid(game_surface)
-        screen.blit(game_surface, (0, 40))
+        
+        grid_x = (screen.get_width() - game_screen_width) // 2
+        grid_y = (screen.get_height() - game_screen_height) // 2 + 40
+        screen.blit(game_surface, (grid_x, grid_y))
 
         if game.game_over:
             message_width = 200
             message_height = 100
             rect = pygame.Rect(
-                (game_screen_width - message_width) // 2,
-                ((game_screen_height - message_height) // 2) + 20,
+                (screen.get_width() - message_width) // 2,
+                (screen.get_height() - message_height) // 2,
                 message_width,
                 message_height
             )
@@ -427,7 +460,7 @@ def play_existing_game(board):
             
             if game.victory:
                 player_name = get_player_name()
-                save_game(player_name, game.score, f"{width}x{height}", game.board)
+                save_game(player_name, game.score, f"{width}x{height}", game.board, game.first_click)
                 return
 
         for event in pygame.event.get():
@@ -439,8 +472,9 @@ def play_existing_game(board):
                     return
             if event.type == pygame.MOUSEBUTTONDOWN and not game.game_over:
                 x, y = event.pos
-                y -= 40
-                if y >= 0:
+                y -= grid_y
+                x -= grid_x
+                if y >= 0 and x >= 0:
                     grid_x, grid_y = x // CELL_SIZE, y // CELL_SIZE
                     if 0 <= grid_x < width and 0 <= grid_y < height:
                         if event.button == 1:
@@ -457,7 +491,7 @@ def score_menu():
     scroll_speed = 20
     
     while True:
-        screen.fill("orange")
+        draw_background()
         back_button.draw(screen)
         
         score_buttons = []  
@@ -480,7 +514,7 @@ def score_menu():
                     main_menu()
                 for rect, result in score_buttons:
                     if rect.collidepoint(event.pos):
-                        play_existing_game(result['board'])
+                        play_existing_game(result['board'], result.get('first_click'))  
             if event.type == pygame.VIDEORESIZE:
                 back_button.update_position()
             if event.type == pygame.KEYDOWN:   
@@ -498,7 +532,7 @@ def score_menu():
 
 def main_menu():
     while True:
-        screen.fill(BACKGROUND_COLOR)
+        draw_background()
 
         start_button.update_position()
         option_button.update_position()
